@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Welcome</title>
+    <link href="{{ url_for('static', filename='css/dropzone.css') }}" rel="stylesheet"/>
+    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/jquery.base64.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dropzone.js') }}"></script>
+</head>
+<body>
+
+<h2>Welcome</h2>
+
+<h3> Choose existing dataset</h3>
+
+<div id="list">
+
+</div>
+
+<hr>
+
+<h3>
+    Add new dataset
+</h3>
+
+<form action="/up" method="post"
+      class=" dz-file-preview dz-image-preview dz-preview dropzone needsclick dz-clickable"
+      id="upload">
+
+    <div class="dz-message needsclick">
+        Drop here or click to upload. <strong>CSV</strong>(only .csv allowed)
+        <br>
+        <span class="note needsclick">(Files will be uploaded without any delay)</span>
+    </div>
+
+</form>
+
+
+<script>
+    $(document).ready(function () {
+    updatelist()
+    });
+
+
+    Dropzone.options.upload = {
+  init: function () {
+    this.on("complete", function (file) {
+      if (this.getUploadingFiles().length === 0 && this.getQueuedFiles().length === 0) {
+        updatelist();
+      }
+    });
+  }
+};
+
+    function updatelist() {
+                $(".url").each(function () {
+            this.remove()
+        });
+
+
+        $.ajax({
+            type: "GET",
+            url: "../getnames",
+            processData: false,
+            contentType: false,
+            success: function (data) {
+               data=data.split(",");
+                data.forEach(function (val) {
+                       $('#list').append("<a class='url' href='new/"+val+"'>"+val+"</a><br/>")
+                })
+
+                }
+
+        });
+    }
+
+</script>
+</body>
+
+
+</html>
