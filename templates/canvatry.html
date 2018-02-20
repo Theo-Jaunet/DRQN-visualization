@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+</head>
+<body>
+<canvas width="1200" height="800"></canvas>
+<script>
+
+
+    var canvas = document.querySelector("canvas"),
+        context = canvas.getContext("2d");
+
+
+    var margin = {top: 20, right: 20, bottom: 30, left: 50},
+        width = canvas.width - margin.left - margin.right,
+        height = canvas.height - margin.top - margin.bottom;
+
+    var customBase = document.createElement('custom');
+    var custom = d3.select(customBase);
+
+    var x = d3.scaleLinear().domain([0, 1300]).range([0, width]);
+    var y = d3.scaleLinear().domain([-800, 200]).range([0, height]);
+
+    var line = d3.line()
+        .x(function (d) {
+            return x(d[0]);
+        })
+        .y(function (d) {
+            return y(d[1]);
+        })
+        .curve(d3.curveCardinal)
+        .context(context);
+
+
+    d3.csv("/data", function (data) {
+
+        var epoch = d3.nest()
+            .key(function (d) {
+                return d.episode;
+            })
+            .entries(data);
+
+        var pos = {};
+
+        for (j = 0; j < epoch.length; j++) {
+            pos[j] = [];
+            for (i = 0; i < epoch[j].values.length; i++) {
+
+                pos[j].push([parseFloat(epoch[j].values[i].posx), parseFloat(epoch[j].values[i].posy)]);
+            }
+        }
+
+
+        context.beginPath();
+        context.arc(x(1035), y(-317), 20, 0, Math.PI * 2, false);
+        context.fillStyle = 'red';
+        context.fill();
+        for (var key in pos) {
+
+            line(pos[key]);
+            context.lineWidth = 1.5;
+            context.strokeStyle = "steelblue";
+            context.stroke();
+
+        }
+
+
+        context.save()
+    });
+
+
+</script>
+
+
+</body>
+</html>

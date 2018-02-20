@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<body>
+<style>
+
+    path {
+        fill: none;
+        stroke: #000;
+        stroke-width: 3px;
+    }
+
+    .line {
+        fill: none;
+        stroke: #000;
+        stroke-width: 2px;
+    }
+
+</style>
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script>
+
+
+    var svg = d3.select("body").append("svg")
+        .attr("width", 1200)
+        .attr("height", 800);
+
+    var line = d3.svg.line()
+        .tension(0) // Catmull–Rom
+        .interpolate("cardinal")
+
+        .x(function (d) {
+            return d[0];
+        })
+        .y(function (d) {
+            return d[1];
+        });
+
+    d3.csv("/data", function (data) {
+        var epoch = d3.nest()
+            .key(function (d) {
+                return d.episode;
+            })
+            .entries(data);
+
+        var pos = {};
+
+
+        for (j = 0; j < epoch.length; j++) {
+            pos[j] = [];
+            for (i = 0; i < epoch[j].values.length; i++) {
+
+                pos[j].push([Math.abs(parseInt(epoch[j].values[i].posx)), Math.abs(parseInt(epoch[j].values[i].posy))]);
+            }
+
+        }
+
+        console.log(pos[0]);
+
+    console.log(pos[0][0]);
+        for (var key in pos) {
+            svg.append("path")
+                .style("stroke", "#ddd")
+                .style("stroke-dasharray", "4,4")
+                .style("opacity", "0")
+                .attr("d", line(pos[key][0]));
+
+
+        }
+        for (var key in pos) {
+            svg.append("path")
+                .attr("d", line(pos[key][0]))
+                .call(transition);
+        }
+    });
+
+
+    function transition(path) {
+        path.transition()
+            .duration(3500)
+            .attrTween("stroke-dasharray", tweenDash)
+            .each("end", function () {
+                d3.select(this).call(transition);
+            });
+    }
+
+    function tweenDash() {
+        var l = this.getTotalLength(),
+            i = d3.interpolateString("0," + l, l + "," + l);
+        return function (t) {
+            return i(t);
+        };
+    }
+
+
+</script>
+

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <link rel="stylesheet" href="http://code.jquery.com/ui/1.9.0/themes/base/jquery-ui.css"/>
+    <script src="http://code.jquery.com/jquery-1.8.2.js"></script>
+    <script src="http://code.jquery.com/ui/1.9.0/jquery-ui.js"></script>
+
+</head>
+<body style="text-align: center">
+<center>
+    <svg width="960" height="500" style="position: absolute"></svg>
+    <canvas id="map" width="960" height="450"></canvas>
+    <div id="slider" style="max-width: 960px;margin-bottom: 20px;text-align: center">
+
+
+    </div>
+
+    <canvas id="rew" width="960" height="450"></canvas>
+</center>
+<script>
+
+    var maxv = 0;
+    var minv = 0;
+
+    var width = 960;
+    var height = 450;
+
+    var
+        x0 = 0,
+        y0 = 0,
+        x1 = width,
+        y1 = height;
+
+    var m = [80, 80, 80, 80]; // margins
+    var w = width - m[1] - m[3]; // width
+    var h = height - m[0] - m[2]; // height
+
+    var svg = d3.select("svg");
+
+    svg.append("rect").attr("width", width).attr("height", height).style("fill", "none").style("stroke", "black");
+
+    var brush = d3.brush()
+        .extent([[0, 0], [width, height]])
+        .on("start brush", brushed)
+        .on("end", brushended);
+
+    svg.append("g")
+        .attr("class", "brush")
+        .call(brush);
+
+    function brushed() {
+        // console.log( d3.event.selection );
+        var s = d3.event.selection;
+
+        x0 = s[0][0];
+        y0 = s[0][1];
+        x1 = s[1][0];
+        y1 = s[1][1];
+
+        var subset = [];
+
+        draw(epoch.filter(function (d) {
+            var test = false;
+            d.some(function (d) {
+
+                if (x(d.posx) > x0 && x(d.posx) < x1 && y(d.posy) > y0 && y(d.posy) < y1 && d.episode >= minv && d.episode <= maxv) {
+                    subset.push(d.episode);
+                    test = true;
+                    return true
+
+                }
+            });
+            return test
+        }));
+
+        draw2(sumer.filter(function (d) {
+            if (subset.includes(d.key)) {
+                return true
+            }
+
+        }));
+
+
+        //console.log("(" + x0 + "," + y0 + ")-(" + x1 + "," + y1 + ")");
+    }
+
+    function brushended() {
+        console.log('end');
+        if (!d3.event.selection) {
+            var subset = [];
+            draw(epoch.filter(function (d) {
+                var test = false;
+                d.some(function (d) {
+                    if (d.episode >= minv && d.episode <= maxv) {
+                        subset.push(d.episode);
+                        test = true;
+                        return true
+
+                    }
+                });
+                return test
+
+            }));
+
+            draw2(sumer.filter(function (d) {
+                if (subset.includes(d.key)) {
+                    return true
+                }
+
+            }));
+
+            x0 = 0;
+            y0 = 0;
+            x1 = width;
+            y1 = height;
+            console.log('There is no selection');
+        }
+    }
+
+    var canvas = document.querySelector("#map"),
+        context = canvas.getContext("2d");
+
+    var canvas2 = document.querySelector("#rew"),
+        context2 = canvas2.getContext("2d");
+
+    var margin = {top: 20, right: 20, bottom: 30, left: 50},
+        width = canvas.width - margin.left - margin.right,
+        height = canvas.height - margin.top - margin.bottom;
+
+    /* var color = d3.scaleLinear().domain([0, 1000])
+         .interpolate(d3.interpolateHcl)
+         .range([d3.rgb("#2894a0"), d3.rgb('#50a99d'), d3.rgb('#7ba995'), d3.rgb('#a8c687')]);*/
+
+    var x = d3.scaleLinear().domain([0, 1400]).range([0, width]);
+    var y = d3.scaleLinear().domain([-800, 200]).range([0, height]);
+
+    var x2 = d3.scaleLinear().range([5, width]);
+
+    var y2 = d3.scaleLinear().range([0, height]);
+
+    var epoch = [];
+    var sumer = [];
+
+    d3.csv("/data", function (error, raw) {
+
+
+        epoch = d3.nest()
+            .key(function (d) {
+                return d.episode;
+            })
+            .entries(raw);
+
+        /*
+                for (j = 0; j < epoch.length; j++) {
+                    pos[j] = [];
+                    for (i = 0; i < epoch[j].values.length; i++) {
+
+                        pos[j].push([parseFloat(epoch[j].values[i].posx), parseFloat(epoch[j].values[i].posy)]);
+                    }
+                }*/
+
+        epoch = epoch.map(function (a) {
+            return a.values
+        });
+
+        sumer = d3.nest()
+            .key(function (d) {
+                return d.episode;
+            })
+            .rollup(function (v) {
+                return d3.sum(v, function (d) {
+                    return d.reward;
+                });
+            })
+            .entries(raw);
+
+        maxv = epoch.length;
+
+        $(function () {
+
+            $("#slider").slider({
+                range: true,
+                min: 0,
+                max: epoch.length,
+                values: [0, epoch.length],
+                slide: function (event, ui) {
+                    maxv = d3.min([ui.values[1], epoch.length]);
+                    minv = d3.max([ui.values[0], 0]);
+                    var subset = [];
+                    draw(epoch.filter(function (d) {
+                        var test = false;
+                        d.some(function (d) {
+                            if (d.episode >= minv && d.episode <= maxv && x(d.posx) > x0 && x(d.posx) < x1 && y(d.posy) > y0 && y(d.posy) < y1) {
+                                subset.push(d.episode);
+                                test = true;
+                                return true
+                            }
+                        });
+                        return test
+
+                    }));
+
+                    draw2(sumer.filter(function (d) {
+                        if (subset.includes(d.key)) {
+                            return true
+                        }
+
+                    }));
+
+
+                }
+            });
+        });
+
+
+        y2.domain([d3.max(sumer, function (d) {
+            console.log(d.value)
+            return d.value;
+        }) + 1, d3.min(sumer, function (d) {
+            return d.value;
+        }) - 1]);
+
+
+        x2.domain([d3.min(sumer, function (d) {
+            return parseInt(d.key)
+        }), d3.max(sumer, function (d) {
+            return parseInt(d.key)
+        })]);
+
+        draw(epoch);
+        draw2(sumer);
+    });
+
+    var line = d3.line()
+        .x(function (d) {
+            return x(d.posx);
+        })
+        .y(function (d) {
+            return y(d.posy);
+        })
+        .curve(d3.curveCardinal)
+        .context(context);
+
+    var line2 = d3.line()
+        .x(function (d) {
+            return x2(d.key);
+        })
+        .y(function (d) {
+            return y2(d.value);
+        })
+        .context(context2);
+
+
+    function draw(data) {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        /* context.beginPath();
+         context.arc(x(1035), y(-317), 10, 0, Math.PI * 2, false);
+         context.fillStyle = 'red';
+         context.fill();
+         context.closePath();*/
+
+        data.forEach(function (d) {
+            context.beginPath();
+            line(d);
+            context.lineWidth = 1.25;
+            context.strokeStyle = 'steelblue';
+            context.stroke();
+            context.closePath();
+        });
+
+    }
+
+
+    function draw2(data) {
+
+         context2.clearRect(0, 0, canvas2.width, canvas2.height);
+
+        x2.domain([d3.min(data, function (d) {
+            return parseInt(d.key)
+        }), d3.max(data, function (d) {
+            return parseInt(d.key)
+        })]);
+
+        xAxis(data.length);
+        yAxis();
+
+        context2.beginPath();
+        line2(data);
+        context2.lineWidth = 1.5;
+        context2.strokeStyle = "steelblue";
+        context2.stroke();
+        context2.closePath()
+    }
+
+    function replay(data) {
+        console.log(data.length);
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        console.log(maxv);
+        context.beginPath();
+        context.arc(x(1035), y(-317), 10, 0, Math.PI * 2, false);
+        context.fillStyle = 'red';
+        context.fill();
+        context.closePath();
+
+        data.forEach(function (d) {
+            context.beginPath();
+            line(d);
+            context.lineWidth = 1.25;
+            context.strokeStyle = 'steelblue';
+            context.stroke();
+            context.closePath();
+        });
+
+
+    }
+
+
+    $("#rep").on("click", function () {
+        var ma = 200;
+        var mi = 0;
+        if (maxv !== undefined) {
+            ma = maxv;
+            mi = minv
+        }
+        replay(epoch.filter(function (d) {
+            var test = false;
+            d.some(function (d) {
+
+                if (d.episode >= minv && d.episode <= maxv) {
+                    test = true;
+                    return true
+
+                }
+            });
+            return test
+
+        }));
+    });
+
+
+    function xAxis(nb) {
+        var tickCount = nb,
+            tickSize = 6,
+            ticks = x2.nice(nb-1).ticks(tickCount),
+            tickFormat = x2.tickFormat();
+
+
+        context2.beginPath();
+        ticks.forEach(function (d) {
+            context2.moveTo(x2(d), height);
+            context2.lineTo(x2(d), height + tickSize);
+        });
+        context2.strokeStyle = "black";
+        context2.stroke();
+        context2.closePath();
+        context2.textAlign = "center";
+        context2.textBaseline = "top";
+        ticks.forEach(function (d) {
+            context2.fillText(tickFormat(d), x2(d), height + tickSize);
+        });
+    }
+
+    function yAxis() {
+        var tickCount = 1,
+            tickSize = 6,
+            ticks = y2.ticks(tickCount),
+            tickFormat = y2.tickFormat(tickCount);
+
+        context2.beginPath();
+        ticks.forEach(function (d) {
+            context2.moveTo(2, y2(d));
+            context2.lineTo(2, y2(d));
+        });
+        context2.strokeStyle = "black";
+        context2.stroke();
+
+        context2.beginPath();
+        context2.moveTo(-tickSize, 0);
+        context2.lineTo(5.5, 0);
+        context2.lineTo(5.5, height);
+        context2.lineTo(-tickSize, height);
+        context2.strokeStyle = "black";
+        context2.stroke();
+
+        context2.textAlign = "right";
+        context2.textBaseline = "middle";
+        ticks.forEach(function (d) {
+            context2.fillText(tickFormat(d), -tickSize, y2(d));
+        });
+
+        context2.save();
+        context2.rotate(-Math.PI / 2);
+        context2.textAlign = "right";
+        context2.textBaseline = "top";
+        context2.font = "bold 10px sans-serif";
+        context2.fillText("reward per epoch", -10, 10);
+        context2.restore();
+    }
+
+
+</script>
+
+</body>
+</html>
