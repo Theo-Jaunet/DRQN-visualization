@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+
+</head>
+<body style="text-align: center">
+<h1 id="num"> Action N° 0</h1>
+<div id="actions">
+
+</div>
+<button id="gauche"><--</button>
+<button id="droite">--></button>
+
+
+<script>
+
+    var svg = d3.select("body").append("svg")
+        .attr("width", 800)
+        .attr("height", 800);
+
+    var epoch = [];
+
+    var act = 0;
+
+    var max = 0;
+
+    var y = 0;
+
+    var col = d3.scaleLinear().domain([18, 24]).range(["#f4e4e4", "#bf8b7d"]).interpolate(d3.interpolateHcl);
+
+    d3.csv("/data/log.csv", function (error, raw) {
+        epoch = d3.nest()
+            .key(function (d) {
+                return d.episode;
+            })
+            .entries(raw);
+
+
+        max = d3.max(epoch["0"].values.map(function (d) {
+            return d.action;
+        }));
+
+        draw(epoch["0"].values.filter(function (d) {
+            console.log(act);
+            if (parseInt(d.action) === act) {
+                return true
+            }
+
+        }))
+
+    });
+
+
+    function draw(data) {
+        var actions = data[0].q_values.replace("[", "").replace("]", "").split(";");
+        var init = 0;
+        actions.forEach(function (value) {
+            subdraw(init, value);
+
+            init += 50
+
+
+        })
+
+    }
+
+    function subdraw(init, da) {
+        svg.append("rect").attr("x", init).attr("y", y).attr("width", 45).attr("height", 45).attr("fill", col(parseFloat(da)))
+    }
+
+    $("#droite").on('click', function () {
+        if (act <=max ) {
+            act++;
+            draw(epoch["0"].values.filter(function (d) {
+                console.log(act);
+                if (parseInt(d.action) === act) {
+                    return true
+                }
+
+            }));
+            $("#num").text("Action N°" + act)
+        }
+
+    });
+
+    $("#gauche").on('click', function () {
+        if (act > 0) {
+
+            act--;
+            draw(epoch["0"].values.filter(function (d) {
+
+                if (parseInt(d.action) === act) {
+                    return true
+                }
+
+            }));
+
+            $("#num").text("Action N°" + act)
+        }
+    })
+
+</script>
+
+
+</body>
+</html>

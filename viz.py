@@ -23,6 +23,10 @@ def tryei(foo):
 def reward():
     return render_template("reward.html")
 
+@app.route('/deepviz')
+def dv():
+    return render_template("deepviz.html")
+
 
 @app.route("/data/<dataset>")
 def data(dataset):
