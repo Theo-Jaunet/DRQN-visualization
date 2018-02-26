@@ -8,29 +8,51 @@
 
 </head>
 <body style="text-align: center">
-<h1 id="num"> Action N° 0</h1>
+<div>
+    <h1 id="epi">Episode N°0</h1>
+    <h2 id="num"> Action N° 0</h2>
+</div>
 <div id="actions">
 
 </div>
-<button id="gauche"><--</button>
-<button id="droite">--></button>
 
+<div id="svg">
+
+</div>
+<div id="control">
+    <button id="gauche"><--</button>
+    <button id="droite">--></button>
+
+</div>
 
 <script>
 
-    var svg = d3.select("body").append("svg")
+    var arrow = ["&#x2190;", "&#x2192;", "&#x2191;", "&#x2193;", "&#x2196;", "&#x2199;", "&#x2197;", "&#x2198;"];
+
+    var svg = d3.select("#svg").append("svg")
         .attr("width", 800)
         .attr("height", 800);
 
     var epoch = [];
-
+    var episode = 0;
     var act = 0;
 
     var max = 0;
 
     var y = 0;
 
-    var col = d3.scaleLinear().domain([18, 24]).range(["#f4e4e4", "#bf8b7d"]).interpolate(d3.interpolateHcl);
+    var x2 = d3.scaleLinear().domain([0, 1400]).range([0, 800]);
+    var y2 = d3.scaleLinear().domain([-800, 200]).range([60, 800]);
+
+    var lastp = [];
+
+    var lineGenerator = d3.line()
+        .curve(d3.curveCardinal);
+
+    var col = d3.scaleLinear().range(["#f4e4e4", "#bf8b7d"]).interpolate(d3.interpolateHcl);
+    var random = d3.scaleLinear().range(["#d1e6f9", "#4682B4"]).interpolate(d3.interpolateHcl);
+    var reward = d3.scaleLinear().range(["#97c4a4", "#376846"]).interpolate(d3.interpolateHcl);
+    var chosen = d3.scaleLinear().range(["#f1d29c", "#ebbf72"]).interpolate(d3.interpolateHcl);
 
     d3.csv("/data/log.csv", function (error, raw) {
         epoch = d3.nest()
@@ -40,69 +62,212 @@
             .entries(raw);
 
 
-        max = d3.max(epoch["0"].values.map(function (d) {
-            return d.action;
+        $("#control").append("<input id='range' type='range' min='0' max='" + (epoch.length - 1) + "' value='0'>");
+
+
+        max = d3.max(epoch["" + episode].values.map(function (d) {
+            return parseInt(d.action);
         }));
 
-        draw(epoch["0"].values.filter(function (d) {
-            console.log(act);
+        draw(epoch["" + episode].values.filter(function (d) {
             if (parseInt(d.action) === act) {
                 return true
             }
 
-        }))
+        }), false)
 
     });
 
 
-    function draw(data) {
-        var actions = data[0].q_values.replace("[", "").replace("]", "").split(";");
+    function draw(data, sens) {
+        var actions = data[0].q_values.replace("[", "").replace("]", "").split(";").map(Number);
         var init = 0;
-        actions.forEach(function (value) {
-            subdraw(init, value);
+        svg.selectAll("*").remove();
+        var temp = d3.max(actions);
+        col.domain([d3.min(actions), temp]);
+        var size = (800 / actions.length) - 10;
+        actions.forEach(function (value, i) {
+            var g = svg.append("g");
+            subdraw(init, value, size, i, g, temp);
+            init += size + 10
+        });
+        if (!sens) {
+            lastp.push([data[0].posx, data[0].posy, what(data[0])]);
+        }
+        else {
+            lastp.pop();
+        }
+        fraulein();
+    }
 
-            init += 50
+    $("#control").on('input', 'input', function () {
 
+        episode = this.value;
+        update_epi()
 
-        })
+    });
+
+    function update_epi() {
+        lastp = [];
+
+        max = d3.max(epoch["" + episode].values.map(function (d) {
+            return parseInt(d.action);
+        }));
+        var i = 0;
+        if (max - 1 <= act) {
+            act = max - 1;
+            $("#num").text("Action N°" + act)
+        }
+        while (i < act) {
+
+            lastp.push([epoch["" + episode].values[i].posx, epoch["" + episode].values[i].posy, what(epoch["" + episode].values[i])]);
+            i++;
+        }
+        $("#epi").text("Episode N°" + episode);
+
+        draw(epoch["" + episode].values.filter(function (d) {
+            if (parseInt(d.action) === act) {
+
+                return true
+            }
+
+        }), false);
+    }
+
+    function fraulein() {
+        reward.domain([0, lastp.length + 1]);
+        random.domain([0, lastp.length + 1]);
+        chosen.domain([0, lastp.length + 1]);
+        d3.select('svg')
+            .selectAll('circle')
+            .data(lastp)
+            .enter()
+            .append('circle')
+            .attr('cx', function (d) {
+                return x2(parseFloat(d[0]));
+            })
+            .attr('cy', function (d) {
+                return y2(parseFloat(d[1]));
+            })
+            .attr('r', function (d) {
+                if (d[2] === 0) {
+                    return 6
+                }
+                else {
+                    return 3
+                }
+            })
+            .attr("fill", function (d, i) {
+                if (d[2] === 0) {
+                    console.log("reward?");
+                    return reward(i + 1);
+                } else if (d[2] === 1) {
+                    return random(i + 1);
+                }
+                else {
+                    return chosen(i + 1);
+                }
+
+            });
+
+        //   d3.select('path')
+        //     .attr('d', lineGenerator(lastp));
 
     }
 
-    function subdraw(init, da) {
-        svg.append("rect").attr("x", init).attr("y", y).attr("width", 45).attr("height", 45).attr("fill", col(parseFloat(da)))
+    function subdraw(init, da, size, i, g, m) {
+        if (da === m) {
+            g.append("rect").attr("x", init).attr("y", y).attr("width", size).attr("height", size).attr("fill", col(parseFloat(da))).attr('stroke', '#2378ae').attr('stroke-width', '3');;
+        } else {
+            g.append("rect").attr("x", init).attr("y", y).attr("width", size).attr("height", size).attr("fill", col(parseFloat(da)));
+        }
+
+        g.append("text").attr("x", init + size / 2 - 10).attr("y", y + size / 2).attr("font-family", "Verdana").attr("font-size", 28).html(arrow[i])
+
     }
 
     $("#droite").on('click', function () {
-        if (act <=max ) {
-            act++;
-            draw(epoch["0"].values.filter(function (d) {
-                console.log(act);
-                if (parseInt(d.action) === act) {
-                    return true
-                }
-
-            }));
-            $("#num").text("Action N°" + act)
-        }
+        move_right();
 
     });
 
     $("#gauche").on('click', function () {
+        move_left()
+    });
+
+
+    function move_left() {
         if (act > 0) {
 
             act--;
-            draw(epoch["0"].values.filter(function (d) {
+            draw(epoch["" + episode].values.filter(function (d) {
 
                 if (parseInt(d.action) === act) {
                     return true
                 }
 
-            }));
+            }), true);
 
             $("#num").text("Action N°" + act)
         }
-    })
+    }
 
+    function move_right() {
+        if (parseInt(act) < parseInt(max)) {
+
+            act++;
+            draw(epoch["" + episode].values.filter(function (d) {
+
+                if (parseInt(d.action) === act) {
+                    return true
+                }
+
+            }), false);
+
+            $("#num").text("Action N°" + act)
+        }
+    }
+
+    function what(row) {
+        if (parseFloat(row.reward) > 0) {
+            console.log("REWARD " + (row.action));
+            return 0
+        } else if (row.random === "True") {
+            return 1
+        }
+        else {
+            console.log("Chosen " + (row.action));
+            return 2;
+        }
+
+    }
+
+    window.onkeydown = function (e) {
+        var code = e.keyCode ? e.keyCode : e.which;
+        if (code === 39) { //right key
+            move_right();
+        }
+        else if (code === 37) {
+            move_left()
+        }
+        else if (code === 38) {
+            if (episode < epoch.length - 1) {
+                episode++;
+
+                var input = document.getElementById("range");
+                input.value = episode;
+                update_epi()
+            }
+        }
+        else if (code === 40) {
+            if (episode > 0) {
+                episode--;
+                var input = document.getElementById("range");
+                input.value = episode;
+                update_epi()
+            }
+        }
+    };
 </script>
 
 
