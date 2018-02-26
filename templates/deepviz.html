@@ -15,7 +15,7 @@
 <div id="actions">
 
 </div>
-
+<img src='{{ url_for('static', filename='loading.gif') }}' id='load' />
 <div id="svg">
 
 </div>
@@ -26,7 +26,6 @@
 </div>
 
 <script>
-
     var arrow = ["&#x2190;", "&#x2192;", "&#x2191;", "&#x2193;", "&#x2196;", "&#x2199;", "&#x2197;", "&#x2198;"];
 
     var svg = d3.select("#svg").append("svg")
@@ -55,13 +54,14 @@
     var chosen = d3.scaleLinear().range(["#f1d29c", "#ebbf72"]).interpolate(d3.interpolateHcl);
 
     d3.csv("/data/log.csv", function (error, raw) {
+
         epoch = d3.nest()
             .key(function (d) {
                 return d.episode;
             })
             .entries(raw);
 
-
+        $("#load").remove();
         $("#control").append("<input id='range' type='range' min='0' max='" + (epoch.length - 1) + "' value='0'>");
 
 
