@@ -15,7 +15,7 @@
 <div id="actions">
 
 </div>
-<img src='{{ url_for('static', filename='loading.gif') }}' id='load' />
+<img src='{{ url_for('static', filename='loading.gif') }}' id='load'/>
 <div id="svg">
 
 </div>
@@ -44,16 +44,17 @@
     var y2 = d3.scaleLinear().domain([-800, 200]).range([60, 800]);
 
     var lastp = [];
+    /*
+        var arc = d3.symbol().type(d3.symbolTriangle)
+            .size(405);*/
 
-    var lineGenerator = d3.line()
-        .curve(d3.curveCardinal);
 
     var col = d3.scaleLinear().range(["#f4e4e4", "#bf8b7d"]).interpolate(d3.interpolateHcl);
     var random = d3.scaleLinear().range(["#d1e6f9", "#4682B4"]).interpolate(d3.interpolateHcl);
     var reward = d3.scaleLinear().range(["#97c4a4", "#376846"]).interpolate(d3.interpolateHcl);
     var chosen = d3.scaleLinear().range(["#f1d29c", "#ebbf72"]).interpolate(d3.interpolateHcl);
 
-    d3.csv("/data/log.csv", function (error, raw) {
+    d3.csv("/data/2018-02-28_16.28.20.150191_log.csv", function (error, raw) {
 
         epoch = d3.nest()
             .key(function (d) {
@@ -92,7 +93,7 @@
             init += size + 10
         });
         if (!sens) {
-            lastp.push([data[0].posx, data[0].posy, what(data[0])]);
+            lastp.push([data[0].posx, data[0].posy, "" + (parseFloat(data[0].angle)), "" + what(data[0])]);
         }
         else {
             lastp.pop();
@@ -120,7 +121,7 @@
         }
         while (i < act) {
 
-            lastp.push([epoch["" + episode].values[i].posx, epoch["" + episode].values[i].posy, what(epoch["" + episode].values[i])]);
+            lastp.push([epoch["" + episode].values[i].posx, epoch["" + episode].values[i].posy, epoch["" + episode].values[i].angle, "" + what(epoch["" + episode].values[i])]);
             i++;
         }
         $("#epi").text("Episode N°" + episode);
@@ -138,46 +139,33 @@
         reward.domain([0, lastp.length + 1]);
         random.domain([0, lastp.length + 1]);
         chosen.domain([0, lastp.length + 1]);
-        d3.select('svg')
-            .selectAll('circle')
-            .data(lastp)
-            .enter()
-            .append('circle')
-            .attr('cx', function (d) {
-                return x2(parseFloat(d[0]));
-            })
-            .attr('cy', function (d) {
-                return y2(parseFloat(d[1]));
-            })
-            .attr('r', function (d) {
-                if (d[2] === 0) {
-                    return 6
-                }
-                else {
-                    return 3
-                }
-            })
-            .attr("fill", function (d, i) {
-                if (d[2] === 0) {
-                    console.log("reward?");
-                    return reward(i + 1);
-                } else if (d[2] === 1) {
-                    return random(i + 1);
-                }
-                else {
-                    return chosen(i + 1);
-                }
 
-            });
 
-        //   d3.select('path')
-        //     .attr('d', lineGenerator(lastp));
-
+        for (i = 0; i < lastp.length; i++) {
+            svg.append("text").attr("font-family", "Verdana").attr("font-size", 28)
+                .attr("transform", "translate(" + x2(lastp[i][0]) + "," + y2(lastp[i][1]) + ") rotate(" + lastp[i][2] + ")")
+                .html("&#10148;")
+                .attr("fill", function () {
+                    if (lastp[i][3] === 0) {
+                        console.log("reward?");
+                        return reward(i + 1);
+                    } else if (lastp[i][3] === "1") {
+                        return random(i + 1);
+                    }
+                    else {
+                        return chosen(i + 1);
+                    }
+                })
+                .attr("stroke", "#000")
+                .attr("stroke-width", "0.5px");
+        }
     }
+
 
     function subdraw(init, da, size, i, g, m) {
         if (da === m) {
-            g.append("rect").attr("x", init).attr("y", y).attr("width", size).attr("height", size).attr("fill", col(parseFloat(da))).attr('stroke', '#2378ae').attr('stroke-width', '3');;
+            g.append("rect").attr("x", init).attr("y", y).attr("width", size).attr("height", size).attr("fill", col(parseFloat(da))).attr('stroke', '#2378ae').attr('stroke-width', '3');
+            ;
         } else {
             g.append("rect").attr("x", init).attr("y", y).attr("width", size).attr("height", size).attr("fill", col(parseFloat(da)));
         }
@@ -188,6 +176,7 @@
 
     $("#droite").on('click', function () {
         move_right();
+
 
     });
 
@@ -214,7 +203,6 @@
 
     function move_right() {
         if (parseInt(act) < parseInt(max)) {
-
             act++;
             draw(epoch["" + episode].values.filter(function (d) {
 
@@ -230,13 +218,11 @@
 
     function what(row) {
         if (parseFloat(row.reward) > 0) {
-            console.log("REWARD " + (row.action));
             return 0
         } else if (row.random === "True") {
             return 1
         }
         else {
-            console.log("Chosen " + (row.action));
             return 2;
         }
 
