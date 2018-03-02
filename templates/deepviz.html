@@ -5,9 +5,18 @@
     <meta name="viewport" content="width=device-width">
     <script src="https://d3js.org/d3.v4.min.js"></script>
     <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <link href="{{ url_for('static', filename='css/main.css') }}" rel="stylesheet"/>
 
 </head>
 <body style="text-align: center">
+<div class="topnav" id="myTopnav" style="margin-bottom: 20px">
+    <a href="/"> Choose Dataset</a>
+    <a href="/new">Brushing</a>
+    <a href="/deepviz">Actions</a>
+    <a href="/traj">Grid</a>
+
+    <a class="icon" onclick="myFunction()">&#9776;</a>
+</div>
 <div>
     <h1 id="epi">Episode N°0</h1>
     <h2 id="num"> Action N° 0</h2>
@@ -27,7 +36,7 @@
 
 <script>
     var arrow = ["&#x2190;", "&#x2192;", "&#x2191;", "&#x2193;", "&#x2196;", "&#x2199;", "&#x2197;", "&#x2198;"];
-
+    var dataset = "/data/";
     var svg = d3.select("#svg").append("svg")
         .attr("width", 800)
         .attr("height", 800);
@@ -54,31 +63,41 @@
     var reward = d3.scaleLinear().range(["#97c4a4", "#376846"]).interpolate(d3.interpolateHcl);
     var chosen = d3.scaleLinear().range(["#f1d29c", "#ebbf72"]).interpolate(d3.interpolateHcl);
 
-    d3.csv("/data/2018-02-28_16.28.20.150191_log.csv", function (error, raw) {
 
-        epoch = d3.nest()
-            .key(function (d) {
-                return d.episode;
-            })
-            .entries(raw);
+    $.ajax({
 
-        $("#load").remove();
-        $("#control").append("<input id='range' type='range' min='0' max='" + (epoch.length - 1) + "' value='0'>");
+        type: "GET",
+        url: "/name",
+        processData: false,
+        contentType: false,
+        success: function (daa) {
+            dataset += daa;
+            d3.csv(dataset, function (error, raw) {
+
+                epoch = d3.nest()
+                    .key(function (d) {
+                        return d.episode;
+                    })
+                    .entries(raw);
+
+                $("#load").remove();
+                $("#control").append("<input id='range' type='range' min='0' max='" + (epoch.length - 1) + "' value='0'>");
 
 
-        max = d3.max(epoch["" + episode].values.map(function (d) {
-            return parseInt(d.action);
-        }));
+                max = d3.max(epoch["" + episode].values.map(function (d) {
+                    return parseInt(d.action);
+                }));
 
-        draw(epoch["" + episode].values.filter(function (d) {
-            if (parseInt(d.action) === act) {
-                return true
-            }
+                draw(epoch["" + episode].values.filter(function (d) {
+                    if (parseInt(d.action) === act) {
+                        return true
+                    }
 
-        }), false)
+                }), false)
 
+            });
+        }
     });
-
 
     function draw(data, sens) {
         var actions = data[0].q_values.replace("[", "").replace("]", "").split(";").map(Number);

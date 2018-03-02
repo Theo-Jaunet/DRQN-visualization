@@ -1,7 +1,32 @@
 import os
-from flask import Flask, render_template, request
+from datetime import timedelta
+
+import binascii
+from flask import Flask, render_template, request, session, redirect
+from flask_caching import Cache
+from flask_compress import Compress
 
 app = Flask(__name__)
+
+app.secret_key = binascii.hexlify(os.urandom(24))
+
+# GZIP
+COMPRESS_MIMETYPES = ['text/html', 'text/css', 'text/csv', 'text/xml', 'application/json', 'application/javascript']
+COMPRESS_LEVEL = 6
+COMPRESS_MIN_SIZE = 500
+
+cache = Cache(config={'CACHE_TYPE': 'simple'})
+cache.init_app(app)
+Compress(app)
+
+
+@app.before_request
+def make_session_permanent():
+    session.permanent = False
+    app.permanent_session_lifetime = timedelta(minutes=10)
+    if session.get("dataset") is None:
+        temp = getfile(os.getcwd() + "/logs")
+        session["dataset"] = temp[len(temp) - 1]
 
 
 @app.route('/')
@@ -14,8 +39,8 @@ def trye():
     return render_template("canvatry.html")
 
 
-@app.route('/new/<foo>')
-def tryei(foo):
+@app.route('/new')
+def tryei():
     return render_template("brushing-canvas.html")
 
 
@@ -23,15 +48,21 @@ def tryei(foo):
 def reward():
     return render_template("reward.html")
 
+
 @app.route('/deepviz')
 def dv():
     return render_template("deepviz.html")
 
 
+@app.route('/traj')
+def dvo():
+    return render_template("ranking-grid.html")
+
+
 @app.route("/data/<dataset>")
 def data(dataset):
     l = ""
-    with open("logs/"+dataset, "r") as f:
+    with open("logs/" + dataset, "r") as f:
         for line in f:
             l += line
     return l
@@ -44,12 +75,23 @@ def up():
     return "ok"
 
 
+@app.route("/select/<dataset>", methods=['GET'])
+def selec(dataset):
+    session["dataset"] = dataset
+    return redirect("/new")
+
+
+@app.route("/name", methods=['GET'])
+def nam():
+    return session["dataset"]
+
+
 @app.route("/getnames", methods=['GET'])
 def getnames():
-    mes =""
+    mes = ""
 
     for f in getfile(os.getcwd() + "/logs"):
-        mes+=f+","
+        mes += f + ","
     mes = mes[:-1]
     return mes
 

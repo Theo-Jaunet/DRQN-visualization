@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+    .axis path,
+    .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+    }
+
+    .line {
+        fill: none;
+        stroke: steelblue;
+        stroke-width: 1.5px;
+    }
+
+    rect {
+        fill: none;
+        stroke: black;
+        stroke-width: .1;
+    }
+</style>
+<head>
+    <link href="{{ url_for('static', filename='css/main.css') }}" rel="stylesheet"/>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/d3-gridding.js') }}"></script>
+</head>
+<body>
+<div class="topnav" id="myTopnav" style="margin-bottom: 20px">
+    <a href="/"> Choose Dataset</a>
+    <a href="/new">Brushing</a>
+    <a href="/deepviz">Actions</a>
+    <a href="/traj">Grid</a>
+
+    <a class="icon" onclick="myFunction()">&#9776;</a>
+</div>
+
+<script>
+
+    // TODO
+    // [ ] Split by time period
+    // [ ] Split by segments
+    // [ ] Calculate speed
+    // [ ] Group by similar teams
+    var margin = {top: 20, right: 80, bottom: 30, left: 50},
+        width = 960 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+
+    var data = [];
+    var sumer = [];
+    var dataset = "/data/";
+    var ease_type = 'linear';
+
+    var x2 = d3.scaleLinear().domain([0, 1400]).range([0, width]);
+
+    var y2 = d3.scaleLinear().domain([-800, 200]).range([0, height]);
+
+    var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    var var_y = 'posx';
+    var var_x = 'posy';
+
+    var line = d3.line()
+        .x(function (d) {
+            return x2(d.posx);
+        })
+        .y(function (d) {
+            return y2(d.posy);
+        });
+
+    var gridding = d3.gridding()
+        .size([width, height])
+        .mode("grid");
+
+    var current_mode = 0,
+        modes = ["central", "grid", "cascade", "horizontal", "coordinate", "diagonal", "radial", "treemap", "vertical", "stack", "brick"];
+
+    var svg = d3.select("body").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .on("click", draw)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    var data = [];
+
+
+    function draw() {
+
+        if (modes[current_mode] === "coordinate") {
+            gridding.params({
+                "valueX": "totalReward",
+                "valueY": "dist"
+            });
+
+        } else {
+            gridding.params({
+                "valueX": null,
+                "valueY": null
+            });
+        }
+
+        gridding.mode(modes[current_mode]).size([width, height]);
+
+        console.log("draw", gridding.mode(), current_mode);
+
+        var griddingData = gridding(data);
+
+        x2.range([0, griddingData[0].width]);
+        y2.range([0, griddingData[0].height]);
+
+        var squares = svg.selectAll(".square")
+            .data(griddingData);
+
+        squares.enter().append("rect")
+            .attr("class", "square")
+            .attr("width", function (d) {
+                return d.width;
+            })
+            .attr("height", function (d) {
+                return d.height;
+            })
+            .attr("transform", function (d) {
+                return "translate(" + d.x + "," + d.y + ")";
+            });
+
+        squares.transition()
+            .attr("width", function (d) {
+                return d.width;
+            })
+            .attr("height", function (d) {
+                return d.height;
+            })
+            .attr("transform", function (d) {
+                return "translate(" + d.x + "," + d.y + ")";
+            });
+
+        var lines = svg.selectAll(".line")
+            .data(data);
+
+        lines.enter()
+            .append("path")
+            .attr("class", "line")
+            .style("stroke-width", 1)
+            .attr("d", function (d) {
+                return line(d);
+            })
+            .style("stroke", function (d) {
+                return d3.rgb(coul(d[0]));
+            })
+            .each(function (d) {
+                d.path_length = d3.select(this).node().getTotalLength();
+            });
+
+        lines.transition().attr("d", function (d) {
+            return line(d);
+        })
+            .attr("transform", function (d) {
+                return "translate(" + d.x + "," + d.y + ")";
+            });
+
+        current_mode = (current_mode + 1) % modes.length;
+    }
+
+    $.ajax({
+
+        type: "GET",
+        url: "/name",
+        processData: false,
+        contentType: false,
+        success: function (daa) {
+            dataset += daa;
+
+            d3.csv(dataset, function (error, raw) {
+                if (error) throw error;
+
+                data = d3.nest()
+                    .key(function (d) {
+                        return d.episode;
+                    })
+                    .entries(raw);
+
+                data = data.map(function (a) {
+                    return a.values
+                });
+
+                sumer = d3.nest()
+                    .key(function (d) {
+                        return d.episode;
+                    })
+                    .rollup(function (v) {
+                        return d3.sum(v, function (d) {
+                            return d.reward;
+                        });
+                    })
+                    .entries(raw);
+
+                for (i = 0; i < data.length; i++) {
+                    var x = parseFloat(data[i][0].posx);
+                    var y = parseFloat(data[i][0].posy);
+                    var x1 = parseFloat(data[i][data[i].length - 1].posx);
+                    var y1 = parseFloat(data[i][data[i].length - 1].posy);
+
+                    data[i].dist = Math.abs(Math.sqrt(Math.pow(x - x1, 2) + (Math.pow(y - y1, 2))));
+
+                    data[i].totalReward = sumer[i].value
+                }
+                draw()
+            });
+        }
+    });
+
+    function coul(epis) {
+        if (sumer[epis.episode].value > 0) {
+            return "#376846"
+        }
+        else {
+            return "#6bb4e5"
+        }
+    }
+
+
+</script>
