@@ -10,7 +10,7 @@
 </head>
 <body style="text-align: center">
 
-<h2 >Welcome</h2>
+<h2>Welcome</h2>
 
 <h3> Choose existing dataset</h3>
 
@@ -39,22 +39,22 @@
 
 <script>
     $(document).ready(function () {
-    updatelist()
+        updatelist()
     });
 
 
     Dropzone.options.upload = {
-  init: function () {
-    this.on("complete", function (file) {
-      if (this.getUploadingFiles().length === 0 && this.getQueuedFiles().length === 0) {
-        updatelist();
-      }
-    });
-  }
-};
+        init: function () {
+            this.on("complete", function (file) {
+                if (this.getUploadingFiles().length === 0 && this.getQueuedFiles().length === 0) {
+                    updatelist();
+                }
+            });
+        }
+    };
 
     function updatelist() {
-                $(".url").each(function () {
+        $(".url").each(function () {
             this.remove()
         });
 
@@ -65,12 +65,12 @@
             processData: false,
             contentType: false,
             success: function (data) {
-               data=data.split(",");
+                data = data.split(",");
                 data.forEach(function (val) {
-                       $('#list').append("<a class='url' href='select/"+val+"'>"+val+"</a><br/>")
+                    $('#list').append("<a class='url' href='select/" + val + "'>" + val + "</a><br/>")
                 })
 
-                }
+            }
 
         });
     }
