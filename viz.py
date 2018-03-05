@@ -26,6 +26,7 @@ def make_session_permanent():
     app.permanent_session_lifetime = timedelta(minutes=10)
     if session.get("dataset") is None:
         temp = getfile(os.getcwd() + "/logs")
+        temp.sort()
         session["dataset"] = temp[len(temp) - 1]
 
 
@@ -89,8 +90,9 @@ def nam():
 @app.route("/getnames", methods=['GET'])
 def getnames():
     mes = ""
-
-    for f in getfile(os.getcwd() + "/logs"):
+    temp = getfile(os.getcwd() + "/logs")
+    temp.sort()
+    for f in temp:
         mes += f + ","
     mes = mes[:-1]
     return mes
